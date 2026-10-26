@@ -8,23 +8,20 @@ The loop:
   4. Re-check the final plan with validate_plan ourselves, so every number
      shown to a colleague comes from code, not from the model.
 
-If a model is busy or over its free-tier limit, the run restarts on the next
-model in the "route": every model of every provider that has a key, in order.
+If a model is busy or unavailable, the run restarts on the next model in MODELS.
 
 run_agent() "yields" one event per step, so the screen (app.py) can show
 each step live as it happens.
 
 Run from the terminal:
-  python agent.py --check     -> test the key, and whether each model has free capacity
+  python agent.py --check     -> test the key and that each model responds
   python agent.py A           -> run email A (or B, or C) and print each step
   python agent.py A --save    -> the same, and save a successful run for replay mode
 """
 
 import json
 import os
-import re
 import sys
-import time
 import tomllib
 from datetime import datetime
 
@@ -33,33 +30,16 @@ from openai import APIConnectionError, APIStatusError, OpenAI, RateLimitError
 from data import DEMO_NOW, EMAILS, LOCATIONS
 from tools import TOOL_SCHEMAS, run_tool, validate_plan
 
-# Every provider here speaks the OpenAI format, so adding or switching one is
-# configuration only. A provider is used only if its key is in .streamlit/secrets.toml.
-# Order: LLM_PROVIDERS in secrets (e.g. "groq, gemini"), else DEFAULT_ORDER.
-PROVIDERS = {
-    "gemini": {
-        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "key_name": "GEMINI_API_KEY",
-        "models": ["gemini-3.5-flash", "gemini-3.7-flash", "gemini-3.8-flash"],
-    },
-    "groq": {
-        "base_url": "https://api.groq.com/openai/v1",
-        "key_name": "GROQ_API_KEY",
-        "models": ["openai/gpt-oss-120b"],
-    },
-    "openrouter": {
-        "base_url": "https://openrouter.ai/api/v1",
-        "key_name": "OPENROUTER_API_KEY",
-        "models": [],   # none by default: set OPENROUTER_MODELS in secrets to use it
-    },
-}
-DEFAULT_ORDER = ["gemini", "groq", "openrouter"]
+# The model provider. Gemini is reached through its OpenAI-compatible address, so
+# moving to another provider (for example Azure OpenAI, if that's what a client
+# has approved) means changing these three settings, not the code.
+BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+KEY_NAME = "GEMINI_API_KEY"
+MODELS = ["gemini-3.5-flash", "gemini-3.7-flash", "gemini-3.8-flash"]   # tried in this order
 
 MAX_STEPS = 8          # safety limit on rounds with the model, so it can't loop forever
 MAX_TOOL_CALLS = 30    # backstop on the total number of tools run
-MAX_SHORT_WAIT = 15    # wait up to this many seconds for a busy model; longer -> next model
-MAX_WAITS_PER_MODEL = 2
-REQUEST_TIMEOUT = 90   # seconds; long enough for a reasoning step, far shorter than the library's 10-minute default
+REQUEST_TIMEOUT = 90   # seconds; the library's default is 10 minutes, far too long for a demo
 
 
 SYSTEM_PROMPT = f"""You are Order Planner, an assistant to a colleague on the trade desk of a
@@ -139,62 +119,13 @@ def get_setting(name):
         return None
 
 
-def provider_order():
-    """Provider names in the order to try them."""
-    setting = get_setting("LLM_PROVIDERS")
-    names = [n.strip().lower() for n in setting.split(",")] if setting else DEFAULT_ORDER
-    unknown = [n for n in names if n not in PROVIDERS]
-    if unknown:
-        raise RuntimeError(f"Unknown provider(s) {unknown}. Choose from: {', '.join(PROVIDERS)}.")
-    return names
-
-
-def make_client(provider_name):
-    provider = PROVIDERS[provider_name]
+def make_client():
+    key = get_setting(KEY_NAME)
+    if not key:
+        raise RuntimeError(f"No {KEY_NAME} found. Add it to .streamlit/secrets.toml.")
     # max_retries=0: the library would otherwise retry quietly in the background.
-    # Our own code decides when to wait, retry or move to the next model.
-    return OpenAI(api_key=get_setting(provider["key_name"]), base_url=provider["base_url"],
-                  timeout=REQUEST_TIMEOUT, max_retries=0)
-
-
-def models_for(provider_name):
-    """A provider's models: from e.g. OPENROUTER_MODELS in secrets if set, else the defaults."""
-    setting = get_setting(f"{provider_name.upper()}_MODELS")
-    if setting:
-        return [m.strip() for m in setting.split(",") if m.strip()]
-    return PROVIDERS[provider_name]["models"]
-
-
-def build_route():
-    """Every (provider, client, model) to try, in order, skipping providers with no key."""
-    route = []
-    for name in provider_order():
-        if not get_setting(PROVIDERS[name]["key_name"]):
-            continue
-        client = make_client(name)
-        for model in models_for(name):
-            route.append((name, client, model))
-    if not route:
-        raise RuntimeError("No API keys found. Add at least one to .streamlit/secrets.toml.")
-    return route
-
-
-def describe_route(route):
-    return ", ".join(f"{name}/{model}" for name, _, model in route)
-
-
-def retry_wait_seconds(error):
-    """How long the service asked us to wait. Gemini says 'retry in 54.9s', Groq 'try again in 7.5s'."""
-    found = re.search(r"(?:retry|try again) in ((?:\d+m)?[\d.]+)(ms|s)", str(error))
-    if not found:
-        return 60   # no time given: usually a daily limit, so don't wait for it
-    amount, unit = found.groups()
-    minutes = 0
-    if "m" in amount:
-        minutes_text, amount = amount.split("m")
-        minutes = int(minutes_text)
-    seconds = minutes * 60 + float(amount) / (1000 if unit == "ms" else 1)
-    return seconds + 1
+    # Our own code decides what happens next: move on to the next model.
+    return OpenAI(api_key=key, base_url=BASE_URL, timeout=REQUEST_TIMEOUT, max_retries=0)
 
 
 # ---------------------------------------------------------------------------
@@ -233,32 +164,34 @@ def check_final_answer(answer):
 # ---------------------------------------------------------------------------
 # The agent
 # ---------------------------------------------------------------------------
-def run_agent(email, route=None):
+def run_agent(email, client=None, models=None):
     """Handle one email. Yields events: start, thought, tool_call, tool_result,
-    waiting, switch_model, final, error.
+    switch_model, final, error.
 
-    route: a list of (provider name, client, model) to try in order. It moves to
-    the next only if one is busy or over its limit.
+    Tries each model in turn; moves to the next only if one is busy or unavailable.
     """
-    route = route or build_route()
+    try:
+        client = client or make_client()
+    except RuntimeError as error:          # e.g. no API key configured
+        yield {"type": "error", "message": str(error)}
+        return
+    models = models or MODELS
 
-    for index, (provider_name, client, model) in enumerate(route):
-        label = f"{provider_name}/{model}"
-        yield {"type": "start", "model": label}
+    for index, model in enumerate(models):
+        yield {"type": "start", "model": model}
         # "yield from" passes this model's events straight through, then gives
         # back how the run ended: "done", or "unavailable" with the reason.
-        outcome, reason = yield from run_with_model(email, client, model, label)
+        outcome, reason = yield from run_with_model(email, client, model)
         if outcome == "done":
             return
-        if index + 1 < len(route):
-            next_name, _, next_model = route[index + 1]
-            yield {"type": "switch_model", "from": label, "to": f"{next_name}/{next_model}", "reason": reason}
+        if index + 1 < len(models):
+            yield {"type": "switch_model", "from": model, "to": models[index + 1], "reason": reason}
         else:
-            yield {"type": "error", "message": "Every model is busy or over its free-tier limit right now. "
-                                               f"Use replay mode, or try again later. Last message: {reason}"}
+            yield {"type": "error", "message": "Every model is busy right now. Use replay mode, "
+                                               f"or try again in a minute. Last message: {reason}"}
 
 
-def run_with_model(email, client, model, label):
+def run_with_model(email, client, model):
     """One attempt with one model. Returns ("done", None) or ("unavailable", reason)."""
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -266,7 +199,6 @@ def run_with_model(email, client, model, label):
     ]
     tool_calls_made = 0
     format_retries = 0
-    waits = 0
     steps = 0
 
     while True:
@@ -277,22 +209,11 @@ def run_with_model(email, client, model, label):
             response = client.chat.completions.create(
                 model=model, messages=messages, tools=TOOL_SCHEMAS
             )
-        except RateLimitError as error:
-            wait = retry_wait_seconds(error)
-            if wait > MAX_SHORT_WAIT or waits >= MAX_WAITS_PER_MODEL:
-                return "unavailable", str(error)[:300]
-            waits += 1
-            yield {"type": "waiting", "seconds": round(wait), "reason": str(error)[:300]}
-            time.sleep(wait)
-            continue
-        except APIConnectionError as error:   # includes timeouts
-            return "unavailable", f"No reply within {REQUEST_TIMEOUT}s or connection failed: {error}"
+        except (RateLimitError, APIConnectionError) as error:   # over its limit, timed out, or unreachable
+            return "unavailable", str(error)[:300]
         except APIStatusError as error:
-            if error.status_code >= 500:      # the provider's servers are overloaded or failing
+            if error.status_code >= 500:                         # the provider's servers are overloaded
                 return "unavailable", str(error)[:300]
-            yield {"type": "error", "message": f"The AI service returned an error: {error}"}
-            return "done", None
-        except Exception as error:
             yield {"type": "error", "message": f"The AI service returned an error: {error}"}
             return "done", None
 
@@ -300,7 +221,6 @@ def run_with_model(email, client, model, label):
         message = response.choices[0].message
         # Send back only the standard fields. Tool calls are kept whole, because
         # Gemini attaches hidden fields to them that must be returned unchanged.
-        # Other extras (such as Groq's "reasoning") are left out.
         full = message.model_dump(exclude_none=True)
         messages.append({key: full[key] for key in ("role", "content", "tool_calls") if key in full})
 
@@ -326,7 +246,6 @@ def run_with_model(email, client, model, label):
                 messages.append({
                     "role": "tool",
                     "tool_call_id": call.id,
-                    # Compact JSON: fewer tokens, which matters on free-tier token limits.
                     "content": json.dumps(result, ensure_ascii=False, separators=(",", ":")),
                 })
             continue
@@ -343,7 +262,7 @@ def run_with_model(email, client, model, label):
             return "done", None
 
         yield {"type": "final", "answer": check_final_answer(answer),
-               "model": label, "tool_calls": tool_calls_made, "steps": steps}
+               "model": model, "tool_calls": tool_calls_made, "steps": steps}
         return "done", None
 
 
@@ -358,7 +277,7 @@ def save_recording(email_id, events):
         "email_id": email_id,
         "model": final["model"],
         "recorded_at": datetime.now().strftime("%a %d %b %Y, %H:%M"),
-        "events": [e for e in events if e["type"] not in ("waiting", "switch_model", "start")],
+        "events": [e for e in events if e["type"] not in ("switch_model", "start")],
     }
     path = f"recordings/{email_id}.json"
     with open(path, "w", encoding="utf-8") as file:
@@ -383,64 +302,27 @@ def print_event(event):
     elif kind == "final":
         print(f"\n[final answer] ({event['steps']} steps, {event['tool_calls']} tool calls, {event['model']})")
         print(json.dumps(event["answer"], indent=2, ensure_ascii=False))
-    elif kind == "waiting":
-        print(f"\n[waiting] Rate limit reached; waiting {event['seconds']}s, then continuing...")
-        print(f"          Service said: {event['reason']}")
     elif kind == "switch_model":
-        print(f"\n[switching] {event['from']} is busy or over its limit; restarting on {event['to']}.")
+        print(f"\n[switching] {event['from']} is busy; restarting on {event['to']}.")
         print(f"            Service said: {event['reason']}")
     elif kind == "error":
         print(f"\n[error] {event['message']}")
 
 
 def check_models():
-    """For every provider with a key, send each model a tiny request to see if it can be used now."""
-    for name in provider_order():
-        if not get_setting(PROVIDERS[name]["key_name"]):
-            print(f"{name}: no key in secrets.toml, skipped")
-            continue
-        client = make_client(name)
+    """Send each model a tiny request, to check the key works and the model responds."""
+    client = make_client()
+    for model in MODELS:
+        print(f"  {model:<20} ", end="", flush=True)   # result is printed on the same line
         try:
-            listed = list(client.models.list())
-        except Exception as error:
-            print(f"{name}: key not accepted or service unreachable: {str(error)[:120]}")
-            continue
-        available = {m.id.removeprefix("models/") for m in listed}
-        print(f"{name}: key works")
-        for model in models_for(name):
-            if model not in available:
-                print(f"  {model:<28} not available on this account")
-                continue
-            check_one_model(client, model)
-        if name == "openrouter":
-            show_free_tool_models(listed)
-
-
-def show_free_tool_models(listed):
-    """OpenRouter lists many models; show the free ones that support tool calling."""
-    free = []
-    for m in listed:
-        info = m.model_dump()
-        if m.id.endswith(":free") and "tools" in (info.get("supported_parameters") or []):
-            free.append((info.get("created") or 0, m.id))
-    print(f"  Free OpenRouter models that support tools ({len(free)}), newest first:")
-    for _, model_id in sorted(free, reverse=True)[:15]:
-        print(f"    {model_id}")
-
-
-def check_one_model(client, model):
-    print(f"  {model:<28} ", end="", flush=True)   # result is printed on the same line
-    try:
-        client.chat.completions.create(model=model, messages=[{"role": "user", "content": "Reply OK"}], max_tokens=5)
-        print("OK")
-    except RateLimitError as error:
-        print(f"over its limit: {str(error)[:150]}")
-    except APIConnectionError:
-        print(f"no reply within {REQUEST_TIMEOUT}s")
-    except APIStatusError as error:
-        print(f"unavailable ({error.status_code}): {str(error)[:120]}")
-    except Exception as error:
-        print(f"error: {str(error)[:150]}")
+            client.chat.completions.create(model=model, messages=[{"role": "user", "content": "Reply OK"}], max_tokens=5)
+            print("OK")
+        except RateLimitError as error:
+            print(f"over its limit: {str(error)[:150]}")
+        except APIConnectionError:
+            print(f"no reply within {REQUEST_TIMEOUT}s")
+        except APIStatusError as error:
+            print(f"unavailable ({error.status_code}): {str(error)[:120]}")
 
 
 if __name__ == "__main__":
@@ -458,13 +340,12 @@ if __name__ == "__main__":
         print("Choose A, B or C.")
         sys.exit(1)
 
-    route = build_route()
-    print(f"Models to try, in order: {describe_route(route)}")
+    print(f"Models, in fallback order: {', '.join(MODELS)}")
     print(email_as_text(email))
     print("-" * 60)
 
     events = []
-    for event in run_agent(email, route):
+    for event in run_agent(email):
         print_event(event)
         events.append(event)
 

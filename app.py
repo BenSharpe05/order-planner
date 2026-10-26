@@ -22,7 +22,7 @@ import time
 
 import streamlit as st
 
-from agent import build_route, describe_route, get_setting, run_agent
+from agent import KEY_NAME, MODELS, get_setting, run_agent
 from data import DELIVERY_SERVICES, DEMO_NOW, EMAILS, LOCATIONS, PRODUCTS, STOCK
 
 LIVE_RUN_LIMIT = 3       # live runs allowed per visitor session
@@ -119,8 +119,6 @@ def render_event(event):
     elif kind == "tool_result":
         st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;↳ {describe_result(event['name'], event['result'])}")
         st.json(event["result"], expanded=False)
-    elif kind == "waiting":
-        st.info(f"Rate limit reached; waiting {event['seconds']}s, then continuing.")
     elif kind == "switch_model":
         st.warning(f"{event['from']} is busy; restarting on {event['to']}.")
     elif kind == "error":
@@ -272,10 +270,9 @@ with st.sidebar:
                 st.rerun()
             elif entered:
                 st.error("Wrong passcode.")
-        try:
-            st.caption(f"Models, in fallback order: {describe_route(build_route())}")
-        except RuntimeError as error:
-            st.error(str(error))
+        st.caption(f"Models, in fallback order: {', '.join(MODELS)}")
+        if not get_setting(KEY_NAME):
+            st.error(f"No {KEY_NAME} found, so live runs will fail. Replay still works.")
         st.caption(f"Live runs used this session: {state.live_runs_used} of {LIVE_RUN_LIMIT}")
 
 live_allowed = live and (state.unlocked or not get_setting("LIVE_PASSCODE")) and state.live_runs_used < LIVE_RUN_LIMIT
