@@ -28,14 +28,25 @@ from openai import OpenAI, RateLimitError
 from data import DEMO_NOW, EMAILS, LOCATIONS
 from tools import TOOL_SCHEMAS, run_tool, validate_plan
 
-# Gemini's OpenAI-compatible address. Changing provider (Groq, OpenAI, Azure)
-# means changing this address, the key and the model name, nothing else.
-BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-DEFAULT_MODEL = "gemini-3.5-flash"
+# Every provider here speaks the OpenAI format, so switching is configuration only:
+# set LLM_PROVIDER in .streamlit/secrets.toml (and optionally LLM_MODEL).
+PROVIDERS = {
+    "groq": {
+        "base_url": "https://api.groq.com/openai/v1",
+        "key_name": "GROQ_API_KEY",
+        "default_model": "openai/gpt-oss-120b",
+    },
+    "gemini": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "key_name": "GEMINI_API_KEY",
+        "default_model": "gemini-3.5-flash",
+    },
+}
+DEFAULT_PROVIDER = "groq"
 
 MAX_STEPS = 8         # safety limit on rounds with the model, so it can't loop forever
 MAX_TOOL_CALLS = 30   # backstop on the total number of tools run
-MAX_RATE_LIMIT_RETRIES = 2   # free tier allows only a few requests a minute
+MAX_RATE_LIMIT_RETRIES = 3   # free tiers limit requests and tokens per minute
 
 
 SYSTEM_PROMPT = f"""You are Order Planner, an assistant to a colleague on the trade desk of a
@@ -84,23 +95,50 @@ write the reply as a holding message saying a colleague will call to agree the o
 """
 
 
-def get_api_key():
-    """Read the key from an environment variable, or else from .streamlit/secrets.toml."""
-    key = os.environ.get("GEMINI_API_KEY")
-    if key:
-        return key
+def get_setting(name):
+    """Read a setting from an environment variable, or else from .streamlit/secrets.toml."""
+    value = os.environ.get(name)
+    if value:
+        return value
     try:
         with open(".streamlit/secrets.toml", "rb") as file:
-            return tomllib.load(file).get("GEMINI_API_KEY")
+            return tomllib.load(file).get(name)
     except FileNotFoundError:
         return None
 
 
+def current_provider():
+    name = (get_setting("LLM_PROVIDER") or DEFAULT_PROVIDER).lower()
+    if name not in PROVIDERS:
+        raise RuntimeError(f"Unknown LLM_PROVIDER '{name}'. Choose one of: {', '.join(PROVIDERS)}.")
+    return name, PROVIDERS[name]
+
+
+def current_model():
+    _, provider = current_provider()
+    return get_setting("LLM_MODEL") or provider["default_model"]
+
+
 def make_client():
-    key = get_api_key()
+    name, provider = current_provider()
+    key = get_setting(provider["key_name"])
     if not key:
-        raise RuntimeError("No GEMINI_API_KEY found. Add it to .streamlit/secrets.toml.")
-    return OpenAI(api_key=key, base_url=BASE_URL)
+        raise RuntimeError(f"No {provider['key_name']} found. Add it to .streamlit/secrets.toml.")
+    return OpenAI(api_key=key, base_url=provider["base_url"])
+
+
+def retry_wait_seconds(error):
+    """How long the service asked us to wait. Gemini says 'retry in 54.9s', Groq 'try again in 7.5s'."""
+    found = re.search(r"(?:retry|try again) in ((?:\d+m)?[\d.]+)(ms|s)", str(error))
+    if not found:
+        return 30
+    amount, unit = found.groups()
+    minutes = 0
+    if "m" in amount:
+        minutes_text, amount = amount.split("m")
+        minutes = int(minutes_text)
+    seconds = minutes * 60 + float(amount) / (1000 if unit == "ms" else 1)
+    return min(seconds + 1, 65)
 
 
 def email_as_text(email):
@@ -136,7 +174,7 @@ def check_final_answer(answer):
 def run_agent(email, client=None, model=None):
     """Handle one email. Yields events: thought, tool_call, tool_result, final, error."""
     client = client or make_client()
-    model = model or os.environ.get("GEMINI_MODEL", DEFAULT_MODEL)
+    model = model or current_model()
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -159,12 +197,11 @@ def run_agent(email, client=None, model=None):
         except RateLimitError as error:
             # Too many requests this minute: wait as long as the service asks, then retry.
             if rate_limit_retries >= MAX_RATE_LIMIT_RETRIES:
-                yield {"type": "error", "message": "The AI service is still busy after waiting. Try again in a minute."}
+                yield {"type": "error", "message": f"The AI service is still over its limit after waiting. Its message: {error}"}
                 return
             rate_limit_retries += 1
-            found = re.search(r"retry in ([\d.]+)s", str(error))
-            wait = min(float(found.group(1)) + 1 if found else 30, 65)
-            yield {"type": "waiting", "seconds": round(wait)}
+            wait = retry_wait_seconds(error)
+            yield {"type": "waiting", "seconds": round(wait), "reason": str(error)[:300]}
             time.sleep(wait)
             continue
         except Exception as error:
@@ -173,9 +210,11 @@ def run_agent(email, client=None, model=None):
 
         steps += 1
         message = response.choices[0].message
-        # Keep the model's message exactly as returned (Gemini attaches hidden
-        # fields to tool calls that must be sent back unchanged).
-        messages.append(message.model_dump(exclude_none=True))
+        # Send back only the standard fields. Tool calls are kept whole, because
+        # Gemini attaches hidden fields to them that must be returned unchanged.
+        # Other extras (such as Groq's "reasoning") are left out.
+        full = message.model_dump(exclude_none=True)
+        messages.append({key: full[key] for key in ("role", "content", "tool_calls") if key in full})
 
         if message.content and message.tool_calls:
             yield {"type": "thought", "text": message.content.strip()}
@@ -199,7 +238,8 @@ def run_agent(email, client=None, model=None):
                 messages.append({
                     "role": "tool",
                     "tool_call_id": call.id,
-                    "content": json.dumps(result, ensure_ascii=False),
+                    # Compact JSON: fewer tokens, which matters on free-tier token limits.
+                    "content": json.dumps(result, ensure_ascii=False, separators=(",", ":")),
                 })
             continue
 
@@ -234,7 +274,8 @@ def print_event(event):
         print("\n[final answer]")
         print(json.dumps(event["answer"], indent=2, ensure_ascii=False))
     elif kind == "waiting":
-        print(f"\n[waiting] Free-tier request limit reached; waiting {event['seconds']}s, then continuing...")
+        print(f"\n[waiting] Rate limit reached; waiting {event['seconds']}s, then continuing...")
+        print(f"          Service said: {event['reason']}")
     elif kind == "error":
         print(f"\n[error] {event['message']}")
 
@@ -245,12 +286,14 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if sys.argv[1] == "--check":
+        provider_name, _ = current_provider()
         client = make_client()
         names = sorted(m.id for m in client.models.list())
-        print("Key works. Flash models available:")
+        print(f"Provider: {provider_name}. Key works. Using model: {current_model()}")
+        print(f"That model is {'available' if current_model() in names or 'models/' + current_model() in names else 'NOT in the list below'}.")
+        print("Available models:")
         for name in names:
-            if "flash" in name:
-                print("  ", name)
+            print("  ", name)
         sys.exit(0)
 
     chosen = sys.argv[1].upper()
@@ -259,6 +302,7 @@ if __name__ == "__main__":
         print("Choose A, B or C.")
         sys.exit(1)
 
+    print(f"Provider: {current_provider()[0]}   Model: {current_model()}")
     print(email_as_text(email))
     print("-" * 60)
     for event in run_agent(email):
