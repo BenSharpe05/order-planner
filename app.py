@@ -284,6 +284,21 @@ live_allowed = live and (state.unlocked or not get_setting("LIVE_PASSCODE")) and
 st.title("📦 Order Planner")
 st.caption("Turns a contractor's email into a checked delivery plan. A colleague approves every plan before anything is sent.")
 
+with st.expander("About this demo"):
+    st.markdown(
+        "Order Planner is a prototype assistant for a builders' merchant's trade desk. It reads a "
+        "contractor's email, looks up products, stock and delivery options, and proposes a plan for a "
+        "colleague to approve.\n\n"
+        "**Try each email, then press Plan this order:**\n"
+        "- **Email A, flooded site:** urgent and vague. It has to split the order to meet both the "
+        "deadline and the delivery budget.\n"
+        "- **Email B, routine order:** an everyday order, handled quickly.\n"
+        "- **Email C, pumps first thing:** can't be met in full. It says so and offers options "
+        "instead of guessing.\n\n"
+        "All data is mock (see the **System data** tab). Every number in a plan is calculated by code, "
+        "not by the AI. **Replay** plays back real recorded runs; **Run live** calls the AI model."
+    )
+
 inbox_tab, data_tab = st.tabs(["Inbox", "System data (mock)"])
 
 with data_tab:
