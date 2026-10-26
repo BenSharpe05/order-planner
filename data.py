@@ -4,7 +4,7 @@ data.py - the mock "database" for the Order Planner demo.
 Everything in this file is invented. In a real deployment, each section
 would be replaced by a connection to one of Travis Perkins' systems:
   PRODUCTS          -> the product catalogue
-  STOCK             -> the stock system for each branch and hub
+  STOCK             -> the stock system for each branch and warehouse
   DELIVERY_SERVICES -> the transport / delivery planning system
   EMAILS            -> the branch's shared inbox
 """
@@ -17,11 +17,11 @@ DEMO_NOW = datetime(2026, 10, 27, 14, 40)
 
 
 # ---------------------------------------------------------------------------
-# Locations that can supply a Glasgow site
+# Where stock can come from
 # ---------------------------------------------------------------------------
 LOCATIONS = {
-    "GLA": "Glasgow branch",
-    "HUB": "Central Scotland hub",
+    "BRANCH": "Local branch",
+    "WAREHOUSE": "Regional warehouse",
 }
 
 
@@ -30,47 +30,41 @@ LOCATIONS = {
 # "keywords" is what the catalogue search matches against.
 # ---------------------------------------------------------------------------
 PRODUCTS = {
-    "PMP-PET-3IN": {
-        "name": "3-inch petrol trash pump",
+    "PUMP-PETROL": {
+        "name": "Petrol water pump",
         "unit_price": 420.00,
-        "keywords": ["pump", "water", "flood", "heavy duty", "heavy-duty", "trash", "petrol", "dewatering"],
-        "notes": "Runs on petrol, so no mains power is needed on site.",
+        "keywords": ["pump", "water", "flood", "heavy duty", "heavy-duty", "petrol", "dewatering"],
+        "notes": "Heavy duty. Runs on petrol, so no power supply is needed on site.",
     },
-    "PMP-SUB-2IN": {
-        "name": "2-inch electric submersible pump",
-        "unit_price": 180.00,
-        "keywords": ["pump", "water", "flood", "heavy duty", "heavy-duty", "submersible", "electric", "dewatering"],
-        "notes": "Needs a 110V power supply on site.",
-    },
-    "CEM-RAPID-25": {
+    "CEMENT-RAPID": {
         "name": "Rapid-set cement, 25 kg bag",
         "unit_price": 9.50,
-        "keywords": ["cement", "concrete", "rapid", "fast-setting", "fast setting", "quick set", "quick-set"],
+        "keywords": ["cement", "rapid", "fast-setting", "fast setting", "quick set", "quick-set"],
         "notes": "",
     },
-    "TRP-ECO-4X3": {
-        "name": "Economy tarpaulin, 4 x 3 m",
+    "TARP-ECONOMY": {
+        "name": "Tarpaulin, economy, 4 x 3 m",
         "unit_price": 6.00,
         "keywords": ["tarp", "tarpaulin", "cover", "sheet", "mud", "cheap", "economy"],
         "notes": "Lightweight. The cheapest cover we stock.",
     },
-    "TRP-HD-6X4": {
-        "name": "Heavy-duty tarpaulin, 6 x 4 m",
+    "TARP-HEAVY": {
+        "name": "Tarpaulin, heavy-duty, 6 x 4 m",
         "unit_price": 14.00,
         "keywords": ["tarp", "tarpaulin", "cover", "sheet", "mud", "heavy duty", "heavy-duty"],
         "notes": "",
     },
-    "TIM-CLS-24": {
-        "name": "CLS timber, 38 x 89 mm, 2.4 m length",
+    "TIMBER-4X2": {
+        "name": "Timber, 4x2, 2.4 m length",
         "unit_price": 4.20,
-        "keywords": ["timber", "wood", "cls", "4x2", "stud", "lengths"],
-        "notes": "Often called '4x2' on site.",
+        "keywords": ["timber", "wood", "4x2", "4 x 2", "cls", "stud", "lengths"],
+        "notes": "Also called CLS timber.",
     },
-    "PST-20": {
-        "name": "Postcrete, 20 kg bag",
+    "CONCRETE-POST": {
+        "name": "Fence-post concrete, 20 kg bag",
         "unit_price": 7.00,
-        "keywords": ["postcrete", "post mix", "postmix", "post concrete", "fence post"],
-        "notes": "",
+        "keywords": ["concrete", "fence-post", "fence post", "postcrete", "post mix", "postmix"],
+        "notes": "Often sold as Postcrete.",
     },
 }
 
@@ -79,53 +73,45 @@ PRODUCTS = {
 # Stock: how many of each product each location has right now
 # ---------------------------------------------------------------------------
 STOCK = {
-    "PMP-PET-3IN":  {"GLA": 0,   "HUB": 6},
-    "PMP-SUB-2IN":  {"GLA": 1,   "HUB": 4},
-    "CEM-RAPID-25": {"GLA": 120, "HUB": 0},
-    "TRP-ECO-4X3":  {"GLA": 25,  "HUB": 0},
-    "TRP-HD-6X4":   {"GLA": 40,  "HUB": 0},
-    "TIM-CLS-24":   {"GLA": 200, "HUB": 0},
-    "PST-20":       {"GLA": 60,  "HUB": 0},
+    "PUMP-PETROL":   {"BRANCH": 0,   "WAREHOUSE": 6},
+    "CEMENT-RAPID":  {"BRANCH": 120, "WAREHOUSE": 0},
+    "TARP-ECONOMY":  {"BRANCH": 25,  "WAREHOUSE": 0},
+    "TARP-HEAVY":    {"BRANCH": 40,  "WAREHOUSE": 0},
+    "TIMBER-4X2":    {"BRANCH": 200, "WAREHOUSE": 0},
+    "CONCRETE-POST": {"BRANCH": 60,  "WAREHOUSE": 0},
 }
 
 
 # ---------------------------------------------------------------------------
-# Delivery services to Glasgow sites.
-# The charge is per shipment: one charge however many items it carries.
-# A service can only be booked before its "order_by" time.
+# Delivery options to the customer's site.
+# The charge is per delivery: one charge however many items it carries.
+# An option can only be booked before its "order_by" time.
 # ---------------------------------------------------------------------------
 DELIVERY_SERVICES = {
-    "GLA-SAMEDAY": {
-        "location": "GLA",
-        "name": "Same-day van",
-        "order_by": datetime(2026, 10, 27, 15, 0),   # Tue 15:00
-        "arrives":  datetime(2026, 10, 27, 17, 0),   # Tue 17:00
-        "charge": 40.00,
-    },
-    "GLA-VAN-WED": {
-        "location": "GLA",
-        "name": "Scheduled van, Wednesday morning",
+    "VAN-WED": {
+        "location": "BRANCH",
+        "name": "Branch van, Wednesday morning",
         "order_by": datetime(2026, 10, 27, 17, 0),   # Tue 17:00
         "arrives":  datetime(2026, 10, 28, 7, 30),   # Wed 07:30
         "charge": 25.00,
     },
-    "GLA-VAN-THU": {
-        "location": "GLA",
-        "name": "Scheduled van, Thursday morning",
+    "VAN-THU": {
+        "location": "BRANCH",
+        "name": "Branch van, Thursday morning",
         "order_by": datetime(2026, 10, 28, 17, 0),   # Wed 17:00
         "arrives":  datetime(2026, 10, 29, 7, 30),   # Thu 07:30
         "charge": 25.00,
     },
-    "HUB-EXPRESS": {
-        "location": "HUB",
-        "name": "Express overnight",
+    "COURIER-OVERNIGHT": {
+        "location": "WAREHOUSE",
+        "name": "Overnight courier",
         "order_by": datetime(2026, 10, 27, 18, 0),   # Tue 18:00
         "arrives":  datetime(2026, 10, 28, 7, 30),   # Wed 07:30
         "charge": 150.00,
     },
-    "HUB-STANDARD": {
-        "location": "HUB",
-        "name": "Standard next-day",
+    "COURIER-STANDARD": {
+        "location": "WAREHOUSE",
+        "name": "Standard courier",
         "order_by": datetime(2026, 10, 27, 18, 0),   # Tue 18:00
         "arrives":  datetime(2026, 10, 28, 13, 0),   # Wed 13:00
         "charge": 50.00,
@@ -135,40 +121,41 @@ DELIVERY_SERVICES = {
 
 # ---------------------------------------------------------------------------
 # The inbox: three contractor emails, all received at DEMO_NOW
+# "label" is how the email is listed in the demo's inbox.
 # ---------------------------------------------------------------------------
 EMAILS = [
     {
         "id": "A",
-        "sender": "Darren, McKay Groundworks",
-        "subject": "URGENT - flooded trench Dalmarnock",
+        "label": "Flooded site (urgent)",
+        "sender": "Site manager, groundworks firm",
+        "subject": "URGENT: flooded site",
         "received": DEMO_NOW,
         "body": (
-            "Disaster on the Dalmarnock site, trench is flooded. Need 2 heavy duty "
-            "water pumps, 60 bags of fast-setting cement and whatever you've got cheap "
-            "to cover the mud. We're bleeding money so keep delivery under £200 total, "
-            "but if the pumps aren't on site by 8am tomorrow the job's ruined. "
-            "Account MCK-2291."
+            "Our site is flooded. Need 2 heavy-duty water pumps, 60 bags of fast-setting "
+            "cement and whatever you've got cheap to cover the mud. Keep delivery under "
+            "£200 total, but the pumps must be on site by 8am tomorrow or the job's ruined."
         ),
     },
     {
         "id": "B",
-        "sender": "Fiona, Brennan Builders",
-        "subject": "Order for Shawlands job",
+        "label": "Routine order",
+        "sender": "Office manager, building firm",
+        "subject": "Order for Thursday",
         "received": DEMO_NOW,
         "body": (
-            "Hi, usual for the Shawlands job please: 30 lengths of 4x2 CLS and "
-            "10 bags of Postcrete. Thursday morning is fine. Account BRN-1180. "
-            "Cheers, Fiona"
+            "Hi, could we get 30 lengths of 4x2 timber and 10 bags of fence-post concrete, "
+            "delivered Thursday morning? Thanks."
         ),
     },
     {
         "id": "C",
-        "sender": "Raj, RSL Civils",
+        "label": "Pumps first thing",
+        "sender": "Site manager, construction firm",
         "subject": "Pumps needed first thing",
         "received": DEMO_NOW,
         "body": (
-            "Need 8 heavy duty pumps on the Govan site by 8am tomorrow. Delivery "
-            "can't be more than £100, margins are shot on this one. Account RSL-0457."
+            "Need 8 heavy-duty water pumps on site by 8am tomorrow. "
+            "Delivery can't cost more than £100."
         ),
     },
 ]
@@ -177,8 +164,8 @@ EMAILS = [
 # Running this file directly prints a quick summary, as a check that it loads.
 if __name__ == "__main__":
     print(f"Demo time: {DEMO_NOW:%a %d %b %H:%M}")
-    print(f"{len(PRODUCTS)} products, {len(DELIVERY_SERVICES)} delivery services, {len(EMAILS)} emails")
+    print(f"{len(PRODUCTS)} products, {len(DELIVERY_SERVICES)} delivery options, {len(EMAILS)} emails")
     for sku, product in PRODUCTS.items():
         stock = STOCK[sku]
-        print(f"  {sku:<13} {product['name']:<40} £{product['unit_price']:>6.2f}   "
-              f"Glasgow: {stock['GLA']:>3}   Hub: {stock['HUB']:>3}")
+        print(f"  {product['name']:<34} £{product['unit_price']:>6.2f}   "
+              f"Branch: {stock['BRANCH']:>3}   Warehouse: {stock['WAREHOUSE']:>3}")

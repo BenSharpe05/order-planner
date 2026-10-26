@@ -1,11 +1,11 @@
 {
   "email_id": "A",
   "model": "gemini/gemini-3.5-flash",
-  "recorded_at": "Mon 26 Oct 2026, 16:40",
+  "recorded_at": "Mon 26 Oct 2026, 19:44",
   "events": [
     {
       "type": "thought",
-      "text": "I will search the product catalog for heavy duty water pumps, fast-setting cement, and cheap mud cover options."
+      "text": "I am searching the catalog for heavy-duty water pumps, fast-setting cement, and cheap mud cover options to find matching products."
     },
     {
       "type": "tool_call",
@@ -21,22 +21,15 @@
         "query": "heavy duty water pump",
         "matches": [
           {
-            "sku": "PMP-PET-3IN",
-            "name": "3-inch petrol trash pump",
+            "sku": "PUMP-PETROL",
+            "name": "Petrol water pump",
             "unit_price": 420.0,
-            "notes": "Runs on petrol, so no mains power is needed on site.",
+            "notes": "Heavy duty. Runs on petrol, so no power supply is needed on site.",
             "match_score": 3
           },
           {
-            "sku": "PMP-SUB-2IN",
-            "name": "2-inch electric submersible pump",
-            "unit_price": 180.0,
-            "notes": "Needs a 110V power supply on site.",
-            "match_score": 3
-          },
-          {
-            "sku": "TRP-HD-6X4",
-            "name": "Heavy-duty tarpaulin, 6 x 4 m",
+            "sku": "TARP-HEAVY",
+            "name": "Tarpaulin, heavy-duty, 6 x 4 m",
             "unit_price": 14.0,
             "notes": "",
             "match_score": 1
@@ -58,7 +51,7 @@
         "query": "fast setting cement",
         "matches": [
           {
-            "sku": "CEM-RAPID-25",
+            "sku": "CEMENT-RAPID",
             "name": "Rapid-set cement, 25 kg bag",
             "unit_price": 9.5,
             "notes": "",
@@ -81,15 +74,15 @@
         "query": "cheap mud cover",
         "matches": [
           {
-            "sku": "TRP-ECO-4X3",
-            "name": "Economy tarpaulin, 4 x 3 m",
+            "sku": "TARP-ECONOMY",
+            "name": "Tarpaulin, economy, 4 x 3 m",
             "unit_price": 6.0,
             "notes": "Lightweight. The cheapest cover we stock.",
             "match_score": 3
           },
           {
-            "sku": "TRP-HD-6X4",
-            "name": "Heavy-duty tarpaulin, 6 x 4 m",
+            "sku": "TARP-HEAVY",
+            "name": "Tarpaulin, heavy-duty, 6 x 4 m",
             "unit_price": 14.0,
             "notes": "",
             "match_score": 2
@@ -99,46 +92,39 @@
     },
     {
       "type": "thought",
-      "text": "I will check stock levels and delivery options for the water pumps, cement, and tarpaulins."
+      "text": "I am checking stock availability and available delivery options for the petrol pump, rapid-set cement, and tarpaulins."
     },
     {
       "type": "tool_call",
       "name": "get_stock_and_delivery",
       "arguments": {
-        "sku": "PMP-PET-3IN"
+        "sku": "PUMP-PETROL"
       }
     },
     {
       "type": "tool_result",
       "name": "get_stock_and_delivery",
       "result": {
-        "sku": "PMP-PET-3IN",
-        "name": "3-inch petrol trash pump",
+        "sku": "PUMP-PETROL",
+        "name": "Petrol water pump",
         "unit_price": 420.0,
         "delivery_note": "Each delivery service used is charged once, however many items it carries.",
         "locations": [
           {
-            "location": "GLA",
-            "location_name": "Glasgow branch",
+            "location": "BRANCH",
+            "location_name": "Local branch",
             "in_stock": 0,
             "delivery_services": [
               {
-                "service": "GLA-SAMEDAY",
-                "name": "Same-day van",
-                "order_by": "Tue 27 Oct 15:00",
-                "arrives": "Tue 27 Oct 17:00",
-                "charge": 40.0
-              },
-              {
-                "service": "GLA-VAN-WED",
-                "name": "Scheduled van, Wednesday morning",
+                "service": "VAN-WED",
+                "name": "Branch van, Wednesday morning",
                 "order_by": "Tue 27 Oct 17:00",
                 "arrives": "Wed 28 Oct 07:30",
                 "charge": 25.0
               },
               {
-                "service": "GLA-VAN-THU",
-                "name": "Scheduled van, Thursday morning",
+                "service": "VAN-THU",
+                "name": "Branch van, Thursday morning",
                 "order_by": "Wed 28 Oct 17:00",
                 "arrives": "Thu 29 Oct 07:30",
                 "charge": 25.0
@@ -146,20 +132,20 @@
             ]
           },
           {
-            "location": "HUB",
-            "location_name": "Central Scotland hub",
+            "location": "WAREHOUSE",
+            "location_name": "Regional warehouse",
             "in_stock": 6,
             "delivery_services": [
               {
-                "service": "HUB-EXPRESS",
-                "name": "Express overnight",
+                "service": "COURIER-OVERNIGHT",
+                "name": "Overnight courier",
                 "order_by": "Tue 27 Oct 18:00",
                 "arrives": "Wed 28 Oct 07:30",
                 "charge": 150.0
               },
               {
-                "service": "HUB-STANDARD",
-                "name": "Standard next-day",
+                "service": "COURIER-STANDARD",
+                "name": "Standard courier",
                 "order_by": "Tue 27 Oct 18:00",
                 "arrives": "Wed 28 Oct 13:00",
                 "charge": 50.0
@@ -173,108 +159,33 @@
       "type": "tool_call",
       "name": "get_stock_and_delivery",
       "arguments": {
-        "sku": "PMP-SUB-2IN"
+        "sku": "CEMENT-RAPID"
       }
     },
     {
       "type": "tool_result",
       "name": "get_stock_and_delivery",
       "result": {
-        "sku": "PMP-SUB-2IN",
-        "name": "2-inch electric submersible pump",
-        "unit_price": 180.0,
-        "delivery_note": "Each delivery service used is charged once, however many items it carries.",
-        "locations": [
-          {
-            "location": "GLA",
-            "location_name": "Glasgow branch",
-            "in_stock": 1,
-            "delivery_services": [
-              {
-                "service": "GLA-SAMEDAY",
-                "name": "Same-day van",
-                "order_by": "Tue 27 Oct 15:00",
-                "arrives": "Tue 27 Oct 17:00",
-                "charge": 40.0
-              },
-              {
-                "service": "GLA-VAN-WED",
-                "name": "Scheduled van, Wednesday morning",
-                "order_by": "Tue 27 Oct 17:00",
-                "arrives": "Wed 28 Oct 07:30",
-                "charge": 25.0
-              },
-              {
-                "service": "GLA-VAN-THU",
-                "name": "Scheduled van, Thursday morning",
-                "order_by": "Wed 28 Oct 17:00",
-                "arrives": "Thu 29 Oct 07:30",
-                "charge": 25.0
-              }
-            ]
-          },
-          {
-            "location": "HUB",
-            "location_name": "Central Scotland hub",
-            "in_stock": 4,
-            "delivery_services": [
-              {
-                "service": "HUB-EXPRESS",
-                "name": "Express overnight",
-                "order_by": "Tue 27 Oct 18:00",
-                "arrives": "Wed 28 Oct 07:30",
-                "charge": 150.0
-              },
-              {
-                "service": "HUB-STANDARD",
-                "name": "Standard next-day",
-                "order_by": "Tue 27 Oct 18:00",
-                "arrives": "Wed 28 Oct 13:00",
-                "charge": 50.0
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "type": "tool_call",
-      "name": "get_stock_and_delivery",
-      "arguments": {
-        "sku": "CEM-RAPID-25"
-      }
-    },
-    {
-      "type": "tool_result",
-      "name": "get_stock_and_delivery",
-      "result": {
-        "sku": "CEM-RAPID-25",
+        "sku": "CEMENT-RAPID",
         "name": "Rapid-set cement, 25 kg bag",
         "unit_price": 9.5,
         "delivery_note": "Each delivery service used is charged once, however many items it carries.",
         "locations": [
           {
-            "location": "GLA",
-            "location_name": "Glasgow branch",
+            "location": "BRANCH",
+            "location_name": "Local branch",
             "in_stock": 120,
             "delivery_services": [
               {
-                "service": "GLA-SAMEDAY",
-                "name": "Same-day van",
-                "order_by": "Tue 27 Oct 15:00",
-                "arrives": "Tue 27 Oct 17:00",
-                "charge": 40.0
-              },
-              {
-                "service": "GLA-VAN-WED",
-                "name": "Scheduled van, Wednesday morning",
+                "service": "VAN-WED",
+                "name": "Branch van, Wednesday morning",
                 "order_by": "Tue 27 Oct 17:00",
                 "arrives": "Wed 28 Oct 07:30",
                 "charge": 25.0
               },
               {
-                "service": "GLA-VAN-THU",
-                "name": "Scheduled van, Thursday morning",
+                "service": "VAN-THU",
+                "name": "Branch van, Thursday morning",
                 "order_by": "Wed 28 Oct 17:00",
                 "arrives": "Thu 29 Oct 07:30",
                 "charge": 25.0
@@ -282,20 +193,20 @@
             ]
           },
           {
-            "location": "HUB",
-            "location_name": "Central Scotland hub",
+            "location": "WAREHOUSE",
+            "location_name": "Regional warehouse",
             "in_stock": 0,
             "delivery_services": [
               {
-                "service": "HUB-EXPRESS",
-                "name": "Express overnight",
+                "service": "COURIER-OVERNIGHT",
+                "name": "Overnight courier",
                 "order_by": "Tue 27 Oct 18:00",
                 "arrives": "Wed 28 Oct 07:30",
                 "charge": 150.0
               },
               {
-                "service": "HUB-STANDARD",
-                "name": "Standard next-day",
+                "service": "COURIER-STANDARD",
+                "name": "Standard courier",
                 "order_by": "Tue 27 Oct 18:00",
                 "arrives": "Wed 28 Oct 13:00",
                 "charge": 50.0
@@ -309,40 +220,33 @@
       "type": "tool_call",
       "name": "get_stock_and_delivery",
       "arguments": {
-        "sku": "TRP-ECO-4X3"
+        "sku": "TARP-ECONOMY"
       }
     },
     {
       "type": "tool_result",
       "name": "get_stock_and_delivery",
       "result": {
-        "sku": "TRP-ECO-4X3",
-        "name": "Economy tarpaulin, 4 x 3 m",
+        "sku": "TARP-ECONOMY",
+        "name": "Tarpaulin, economy, 4 x 3 m",
         "unit_price": 6.0,
         "delivery_note": "Each delivery service used is charged once, however many items it carries.",
         "locations": [
           {
-            "location": "GLA",
-            "location_name": "Glasgow branch",
+            "location": "BRANCH",
+            "location_name": "Local branch",
             "in_stock": 25,
             "delivery_services": [
               {
-                "service": "GLA-SAMEDAY",
-                "name": "Same-day van",
-                "order_by": "Tue 27 Oct 15:00",
-                "arrives": "Tue 27 Oct 17:00",
-                "charge": 40.0
-              },
-              {
-                "service": "GLA-VAN-WED",
-                "name": "Scheduled van, Wednesday morning",
+                "service": "VAN-WED",
+                "name": "Branch van, Wednesday morning",
                 "order_by": "Tue 27 Oct 17:00",
                 "arrives": "Wed 28 Oct 07:30",
                 "charge": 25.0
               },
               {
-                "service": "GLA-VAN-THU",
-                "name": "Scheduled van, Thursday morning",
+                "service": "VAN-THU",
+                "name": "Branch van, Thursday morning",
                 "order_by": "Wed 28 Oct 17:00",
                 "arrives": "Thu 29 Oct 07:30",
                 "charge": 25.0
@@ -350,20 +254,20 @@
             ]
           },
           {
-            "location": "HUB",
-            "location_name": "Central Scotland hub",
+            "location": "WAREHOUSE",
+            "location_name": "Regional warehouse",
             "in_stock": 0,
             "delivery_services": [
               {
-                "service": "HUB-EXPRESS",
-                "name": "Express overnight",
+                "service": "COURIER-OVERNIGHT",
+                "name": "Overnight courier",
                 "order_by": "Tue 27 Oct 18:00",
                 "arrives": "Wed 28 Oct 07:30",
                 "charge": 150.0
               },
               {
-                "service": "HUB-STANDARD",
-                "name": "Standard next-day",
+                "service": "COURIER-STANDARD",
+                "name": "Standard courier",
                 "order_by": "Tue 27 Oct 18:00",
                 "arrives": "Wed 28 Oct 13:00",
                 "charge": 50.0
@@ -377,40 +281,33 @@
       "type": "tool_call",
       "name": "get_stock_and_delivery",
       "arguments": {
-        "sku": "TRP-HD-6X4"
+        "sku": "TARP-HEAVY"
       }
     },
     {
       "type": "tool_result",
       "name": "get_stock_and_delivery",
       "result": {
-        "sku": "TRP-HD-6X4",
-        "name": "Heavy-duty tarpaulin, 6 x 4 m",
+        "sku": "TARP-HEAVY",
+        "name": "Tarpaulin, heavy-duty, 6 x 4 m",
         "unit_price": 14.0,
         "delivery_note": "Each delivery service used is charged once, however many items it carries.",
         "locations": [
           {
-            "location": "GLA",
-            "location_name": "Glasgow branch",
+            "location": "BRANCH",
+            "location_name": "Local branch",
             "in_stock": 40,
             "delivery_services": [
               {
-                "service": "GLA-SAMEDAY",
-                "name": "Same-day van",
-                "order_by": "Tue 27 Oct 15:00",
-                "arrives": "Tue 27 Oct 17:00",
-                "charge": 40.0
-              },
-              {
-                "service": "GLA-VAN-WED",
-                "name": "Scheduled van, Wednesday morning",
+                "service": "VAN-WED",
+                "name": "Branch van, Wednesday morning",
                 "order_by": "Tue 27 Oct 17:00",
                 "arrives": "Wed 28 Oct 07:30",
                 "charge": 25.0
               },
               {
-                "service": "GLA-VAN-THU",
-                "name": "Scheduled van, Thursday morning",
+                "service": "VAN-THU",
+                "name": "Branch van, Thursday morning",
                 "order_by": "Wed 28 Oct 17:00",
                 "arrives": "Thu 29 Oct 07:30",
                 "charge": 25.0
@@ -418,20 +315,20 @@
             ]
           },
           {
-            "location": "HUB",
-            "location_name": "Central Scotland hub",
+            "location": "WAREHOUSE",
+            "location_name": "Regional warehouse",
             "in_stock": 0,
             "delivery_services": [
               {
-                "service": "HUB-EXPRESS",
-                "name": "Express overnight",
+                "service": "COURIER-OVERNIGHT",
+                "name": "Overnight courier",
                 "order_by": "Tue 27 Oct 18:00",
                 "arrives": "Wed 28 Oct 07:30",
                 "charge": 150.0
               },
               {
-                "service": "HUB-STANDARD",
-                "name": "Standard next-day",
+                "service": "COURIER-STANDARD",
+                "name": "Standard courier",
                 "order_by": "Tue 27 Oct 18:00",
                 "arrives": "Wed 28 Oct 13:00",
                 "charge": 50.0
@@ -443,7 +340,7 @@
     },
     {
       "type": "thought",
-      "text": "I will validate the proposed delivery plan for the petrol water pumps from the Hub and the cement and tarpaulins from the Glasgow branch."
+      "text": "I am validating the delivery plan to check stock, delivery cut-offs, delivery charge limit, and arrival times."
     },
     {
       "type": "tool_call",
@@ -452,25 +349,23 @@
         "max_delivery_charge": 200,
         "lines": [
           {
+            "sku": "PUMP-PETROL",
             "needed_by": "2026-10-28 08:00",
-            "location": "HUB",
+            "service": "COURIER-OVERNIGHT",
             "quantity": 2,
-            "sku": "PMP-PET-3IN",
-            "service": "HUB-EXPRESS"
+            "location": "WAREHOUSE"
           },
           {
-            "service": "GLA-VAN-WED",
             "quantity": 60,
-            "needed_by": "2026-10-28 08:00",
-            "sku": "CEM-RAPID-25",
-            "location": "GLA"
+            "location": "BRANCH",
+            "service": "VAN-WED",
+            "sku": "CEMENT-RAPID"
           },
           {
-            "needed_by": "2026-10-28 08:00",
-            "service": "GLA-VAN-WED",
-            "sku": "TRP-ECO-4X3",
-            "quantity": 5,
-            "location": "GLA"
+            "service": "VAN-WED",
+            "quantity": 10,
+            "sku": "TARP-ECONOMY",
+            "location": "BRANCH"
           }
         ]
       }
@@ -483,11 +378,11 @@
         "problems": [],
         "lines": [
           {
-            "sku": "PMP-PET-3IN",
-            "name": "3-inch petrol trash pump",
+            "sku": "PUMP-PETROL",
+            "name": "Petrol water pump",
             "quantity": 2,
-            "location": "HUB",
-            "service": "HUB-EXPRESS",
+            "location": "WAREHOUSE",
+            "service": "COURIER-OVERNIGHT",
             "arrives": "Wed 28 Oct 07:30",
             "needed_by": "2026-10-28 08:00",
             "meets_deadline": true,
@@ -495,104 +390,102 @@
             "line_total": 840.0
           },
           {
-            "sku": "CEM-RAPID-25",
+            "sku": "CEMENT-RAPID",
             "name": "Rapid-set cement, 25 kg bag",
             "quantity": 60,
-            "location": "GLA",
-            "service": "GLA-VAN-WED",
+            "location": "BRANCH",
+            "service": "VAN-WED",
             "arrives": "Wed 28 Oct 07:30",
-            "needed_by": "2026-10-28 08:00",
-            "meets_deadline": true,
+            "needed_by": null,
+            "meets_deadline": null,
             "unit_price": 9.5,
             "line_total": 570.0
           },
           {
-            "sku": "TRP-ECO-4X3",
-            "name": "Economy tarpaulin, 4 x 3 m",
-            "quantity": 5,
-            "location": "GLA",
-            "service": "GLA-VAN-WED",
+            "sku": "TARP-ECONOMY",
+            "name": "Tarpaulin, economy, 4 x 3 m",
+            "quantity": 10,
+            "location": "BRANCH",
+            "service": "VAN-WED",
             "arrives": "Wed 28 Oct 07:30",
-            "needed_by": "2026-10-28 08:00",
-            "meets_deadline": true,
+            "needed_by": null,
+            "meets_deadline": null,
             "unit_price": 6.0,
-            "line_total": 30.0
+            "line_total": 60.0
           }
         ],
         "shipments": [
           {
-            "service": "HUB-EXPRESS",
-            "location": "HUB",
+            "service": "COURIER-OVERNIGHT",
+            "location": "WAREHOUSE",
             "arrives": "Wed 28 Oct 07:30",
             "charge": 150.0,
             "carries": [
-              "PMP-PET-3IN"
+              "PUMP-PETROL"
             ]
           },
           {
-            "service": "GLA-VAN-WED",
-            "location": "GLA",
+            "service": "VAN-WED",
+            "location": "BRANCH",
             "arrives": "Wed 28 Oct 07:30",
             "charge": 25.0,
             "carries": [
-              "CEM-RAPID-25",
-              "TRP-ECO-4X3"
+              "CEMENT-RAPID",
+              "TARP-ECONOMY"
             ]
           }
         ],
-        "goods_total": 1440.0,
+        "goods_total": 1470.0,
         "delivery_total": 175.0,
         "max_delivery_charge": 200,
-        "grand_total": 1615.0
+        "grand_total": 1645.0
       }
     },
     {
       "type": "final",
       "answer": {
         "status": "plan_proposed",
-        "understanding": "The customer urgently needs 2 heavy-duty water pumps, 60 bags of fast-setting cement, and cheap mud covers delivered to their Dalmarnock site before 8:00 AM tomorrow, keeping the total delivery charge under £200.",
+        "understanding": "The customer urgently needs 2 heavy-duty water pumps delivered to site by 8:00 AM tomorrow due to flooding, along with 60 bags of fast-setting cement and cheap ground cover for mud, keeping total delivery charges under £200.",
         "assumptions": [
-          "Assumed a quantity of 5 economy tarpaulins (4 x 3 m) to cover the mud.",
-          "Selected 3-inch petrol trash pumps as heavy-duty pumps suitable for mud/flooding, which run on petrol rather than mains power."
+          "Assumed 10 economy tarpaulins (4 x 3 m) for mud cover as no specific quantity was given.",
+          "Selected petrol water pumps (PUMP-PETROL) as the heavy-duty pump option."
         ],
         "plan": {
           "lines": [
             {
-              "sku": "PMP-PET-3IN",
-              "location": "HUB",
-              "service": "HUB-EXPRESS",
+              "sku": "PUMP-PETROL",
               "quantity": 2,
+              "location": "WAREHOUSE",
+              "service": "COURIER-OVERNIGHT",
               "needed_by": "2026-10-28 08:00"
             },
             {
-              "sku": "CEM-RAPID-25",
-              "location": "GLA",
-              "service": "GLA-VAN-WED",
+              "sku": "CEMENT-RAPID",
               "quantity": 60,
-              "needed_by": "2026-10-28 08:00"
+              "location": "BRANCH",
+              "service": "VAN-WED"
             },
             {
-              "sku": "TRP-ECO-4X3",
-              "location": "GLA",
-              "service": "GLA-VAN-WED",
-              "quantity": 5,
-              "needed_by": "2026-10-28 08:00"
+              "sku": "TARP-ECONOMY",
+              "quantity": 10,
+              "location": "BRANCH",
+              "service": "VAN-WED"
             }
           ],
-          "max_delivery_charge": 200.0
+          "max_delivery_charge": 200
         },
         "options": [],
-        "reply_draft": "Hi Darren,\n\nWe can meet your 8am deadline tomorrow morning with total delivery charges under your £200 budget.\n\nHere is your delivery plan:\n- 2 x 3-inch petrol trash pumps (PMP-PET-3IN) @ £420.00 = £840.00\n  Delivery: Express overnight from Central Scotland Hub (£150.00)\n- 60 x Rapid-set cement 25kg bags (CEM-RAPID-25) @ £9.50 = £570.00\n- 5 x Economy tarpaulins 4x3m (TRP-ECO-4X3) @ £6.00 = £30.00\n  Delivery: Scheduled van from Glasgow branch (£25.00)\n\nBoth deliveries arrive by 07:30 on Wednesday 28 October.\n\nGoods total: £1,440.00\nDelivery total: £175.00\nGrand total: £1,615.00\n\nNote: The petrol trash pumps run on petrol, so no mains power supply is needed on site.\n\nPlease let us know if you would like us to process this order for account MCK-2291.\n\nTravis Perkins Glasgow",
+        "reply_draft": "Hi,\n\nWe can get your urgent order delivered to site by 07:30 tomorrow morning (Wednesday 28 October), well ahead of your 8:00 AM deadline.\n\nHere is what we have scheduled for you:\n- 2 x Petrol water pumps (heavy duty) from warehouse via overnight courier (£840.00)\n- 60 x Rapid-set cement 25kg bags from local branch via branch van (£570.00)\n- 10 x Economy tarpaulins (4 x 3 m) from local branch via branch van (£60.00)\n\nDelivery costs:\n- Overnight courier: £150.00\n- Branch van: £25.00\nTotal delivery charge: £175.00 (under your £200 limit)\nTotal order amount (goods + delivery): £1,645.00\n\nPlease let us know if you'd like us to confirm this order or adjust the tarpaulin quantity.\n\nKind regards,\nThe trade desk team",
         "plan_check": {
           "valid": true,
           "problems": [],
           "lines": [
             {
-              "sku": "PMP-PET-3IN",
-              "name": "3-inch petrol trash pump",
+              "sku": "PUMP-PETROL",
+              "name": "Petrol water pump",
               "quantity": 2,
-              "location": "HUB",
-              "service": "HUB-EXPRESS",
+              "location": "WAREHOUSE",
+              "service": "COURIER-OVERNIGHT",
               "arrives": "Wed 28 Oct 07:30",
               "needed_by": "2026-10-28 08:00",
               "meets_deadline": true,
@@ -600,59 +493,59 @@
               "line_total": 840.0
             },
             {
-              "sku": "CEM-RAPID-25",
+              "sku": "CEMENT-RAPID",
               "name": "Rapid-set cement, 25 kg bag",
               "quantity": 60,
-              "location": "GLA",
-              "service": "GLA-VAN-WED",
+              "location": "BRANCH",
+              "service": "VAN-WED",
               "arrives": "Wed 28 Oct 07:30",
-              "needed_by": "2026-10-28 08:00",
-              "meets_deadline": true,
+              "needed_by": null,
+              "meets_deadline": null,
               "unit_price": 9.5,
               "line_total": 570.0
             },
             {
-              "sku": "TRP-ECO-4X3",
-              "name": "Economy tarpaulin, 4 x 3 m",
-              "quantity": 5,
-              "location": "GLA",
-              "service": "GLA-VAN-WED",
+              "sku": "TARP-ECONOMY",
+              "name": "Tarpaulin, economy, 4 x 3 m",
+              "quantity": 10,
+              "location": "BRANCH",
+              "service": "VAN-WED",
               "arrives": "Wed 28 Oct 07:30",
-              "needed_by": "2026-10-28 08:00",
-              "meets_deadline": true,
+              "needed_by": null,
+              "meets_deadline": null,
               "unit_price": 6.0,
-              "line_total": 30.0
+              "line_total": 60.0
             }
           ],
           "shipments": [
             {
-              "service": "HUB-EXPRESS",
-              "location": "HUB",
+              "service": "COURIER-OVERNIGHT",
+              "location": "WAREHOUSE",
               "arrives": "Wed 28 Oct 07:30",
               "charge": 150.0,
               "carries": [
-                "PMP-PET-3IN"
+                "PUMP-PETROL"
               ]
             },
             {
-              "service": "GLA-VAN-WED",
-              "location": "GLA",
+              "service": "VAN-WED",
+              "location": "BRANCH",
               "arrives": "Wed 28 Oct 07:30",
               "charge": 25.0,
               "carries": [
-                "CEM-RAPID-25",
-                "TRP-ECO-4X3"
+                "CEMENT-RAPID",
+                "TARP-ECONOMY"
               ]
             }
           ],
-          "goods_total": 1440.0,
+          "goods_total": 1470.0,
           "delivery_total": 175.0,
-          "max_delivery_charge": 200.0,
-          "grand_total": 1615.0
+          "max_delivery_charge": 200,
+          "grand_total": 1645.0
         }
       },
       "model": "gemini/gemini-3.5-flash",
-      "tool_calls": 9,
+      "tool_calls": 8,
       "steps": 4
     }
   ]

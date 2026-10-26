@@ -94,8 +94,8 @@ def validate_plan(lines, max_delivery_charge=None):
     """Check a proposed plan against stock, cut-offs, deadlines and the delivery budget.
 
     lines: a list of plan lines, each like
-        {"sku": "PMP-PET-3IN", "quantity": 2, "location": "HUB",
-         "service": "HUB-EXPRESS", "needed_by": "2026-10-28 08:00"}
+        {"sku": "PUMP-PETROL", "quantity": 2, "location": "WAREHOUSE",
+         "service": "COURIER-OVERNIGHT", "needed_by": "2026-10-28 08:00"}
         ("needed_by" is optional.)
     max_delivery_charge: the customer's limit on total delivery charges, if any.
 
@@ -266,8 +266,8 @@ TOOL_SCHEMAS = [
                             "properties": {
                                 "sku": {"type": "string"},
                                 "quantity": {"type": "integer"},
-                                "location": {"type": "string", "description": "Location code, e.g. GLA or HUB."},
-                                "service": {"type": "string", "description": "Delivery service id, e.g. HUB-EXPRESS."},
+                                "location": {"type": "string", "description": "Location code, e.g. BRANCH or WAREHOUSE."},
+                                "service": {"type": "string", "description": "Delivery service id, e.g. COURIER-OVERNIGHT."},
                                 "needed_by": {"type": "string", "description": "Optional deadline, format 'YYYY-MM-DD HH:MM'."},
                             },
                             "required": ["sku", "quantity", "location", "service"],
@@ -310,31 +310,31 @@ if __name__ == "__main__":
         print(json.dumps(result, indent=2, ensure_ascii=False))
 
     show("Search: 'cheap mud cover'", search_catalog("cheap mud cover"))
-    show("Stock and delivery: PMP-PET-3IN", get_stock_and_delivery("PMP-PET-3IN"))
+    show("Stock and delivery: PUMP-PETROL", get_stock_and_delivery("PUMP-PETROL"))
 
-    # Scenario A, a good plan: pumps by hub express; cement and tarps on the Wednesday van.
+    # Scenario A, a good plan: pumps by overnight courier; cement and tarps on the Wednesday van.
     plan_a = [
-        {"sku": "PMP-PET-3IN", "quantity": 2, "location": "HUB", "service": "HUB-EXPRESS", "needed_by": "2026-10-28 08:00"},
-        {"sku": "CEM-RAPID-25", "quantity": 60, "location": "GLA", "service": "GLA-VAN-WED"},
-        {"sku": "TRP-ECO-4X3", "quantity": 10, "location": "GLA", "service": "GLA-VAN-WED"},
+        {"sku": "PUMP-PETROL", "quantity": 2, "location": "WAREHOUSE", "service": "COURIER-OVERNIGHT", "needed_by": "2026-10-28 08:00"},
+        {"sku": "CEMENT-RAPID", "quantity": 60, "location": "BRANCH", "service": "VAN-WED"},
+        {"sku": "TARP-ECONOMY", "quantity": 5, "location": "BRANCH", "service": "VAN-WED"},
     ]
     result = validate_plan(plan_a, max_delivery_charge=200)
     print(f"\nScenario A, good plan:   valid={result['valid']}  delivery=£{result['delivery_total']:.2f}  problems={result['problems']}")
 
-    # Scenario A, a bad plan: pumps by hub standard arrive too late.
-    plan_a_bad = [dict(plan_a[0], service="HUB-STANDARD")] + plan_a[1:]
+    # Scenario A, a bad plan: pumps by standard courier arrive too late.
+    plan_a_bad = [dict(plan_a[0], service="COURIER-STANDARD")] + plan_a[1:]
     result = validate_plan(plan_a_bad, max_delivery_charge=200)
     print(f"Scenario A, late pumps:  valid={result['valid']}  problems={result['problems']}")
 
     # Scenario B: everything on the Thursday van.
     plan_b = [
-        {"sku": "TIM-CLS-24", "quantity": 30, "location": "GLA", "service": "GLA-VAN-THU"},
-        {"sku": "PST-20", "quantity": 10, "location": "GLA", "service": "GLA-VAN-THU"},
+        {"sku": "TIMBER-4X2", "quantity": 30, "location": "BRANCH", "service": "VAN-THU"},
+        {"sku": "CONCRETE-POST", "quantity": 10, "location": "BRANCH", "service": "VAN-THU"},
     ]
     result = validate_plan(plan_b)
     print(f"Scenario B:              valid={result['valid']}  delivery=£{result['delivery_total']:.2f}  problems={result['problems']}")
 
     # Scenario C: 8 pumps by 08:00 for under £100 can't be done.
-    plan_c = [{"sku": "PMP-PET-3IN", "quantity": 8, "location": "HUB", "service": "HUB-EXPRESS", "needed_by": "2026-10-28 08:00"}]
+    plan_c = [{"sku": "PUMP-PETROL", "quantity": 8, "location": "WAREHOUSE", "service": "COURIER-OVERNIGHT", "needed_by": "2026-10-28 08:00"}]
     result = validate_plan(plan_c, max_delivery_charge=100)
     print(f"Scenario C:              valid={result['valid']}  problems={result['problems']}")

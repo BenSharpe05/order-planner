@@ -23,7 +23,7 @@ import time
 import streamlit as st
 
 from agent import build_route, describe_route, get_setting, run_agent
-from data import DELIVERY_SERVICES, DEMO_NOW, EMAILS, LOCATIONS, PRODUCTS
+from data import DELIVERY_SERVICES, DEMO_NOW, EMAILS, LOCATIONS, PRODUCTS, STOCK
 
 LIVE_RUN_LIMIT = 3       # live runs allowed per visitor session
 REPLAY_STEP_DELAY = 0.6  # seconds between steps when replaying, so it reads like a live run
@@ -172,7 +172,8 @@ def render_check(check, is_option=False):
             {
                 "Item": line["name"],
                 "Qty": line["quantity"],
-                "Delivery": f"{DELIVERY_SERVICES[line['service']]['name']}, from {LOCATIONS[line['location']]}",
+                "Delivery": f"{DELIVERY_SERVICES.get(line['service'], {}).get('name', line['service'])}, "
+                            f"from {LOCATIONS.get(line['location'], line['location'])}",
                 "Arrives": line["arrives"],
                 "Line total": money(line["line_total"]),
             }
@@ -286,79 +287,114 @@ live_allowed = live and (state.unlocked or not get_setting("LIVE_PASSCODE")) and
 st.title("📦 Order Planner")
 st.caption("Turns a contractor's email into a checked delivery plan. A colleague approves every plan before anything is sent.")
 
-inbox, work = st.columns([1, 2.4], gap="large")
+inbox_tab, data_tab = st.tabs(["Inbox", "System data (mock)"])
 
-with inbox:
-    st.markdown("#### Trade desk inbox")
-    emails_by_id = {email["id"]: email for email in EMAILS}
+with data_tab:
+    st.caption("What Order Planner's tools can see. Every number in a plan comes from here, "
+               f"never from the AI. Demo clock: {DEMO_NOW:%a %d %b, %H:%M}.")
+    st.markdown("#### Products and stock")
+    st.table(
+        [
+            {
+                "Product": product["name"],
+                "Price": money(product["unit_price"]),
+                **{f"In stock: {name}": STOCK[sku][code] for code, name in LOCATIONS.items()},
+                "Notes": product["notes"],
+            }
+            for sku, product in PRODUCTS.items()
+        ],
+        hide_index=True,
+    )
+    st.markdown("#### Delivery options")
+    st.table(
+        [
+            {
+                "Delivery": service["name"],
+                "From": LOCATIONS[service["location"]],
+                "Order by": f"{service['order_by']:%a %H:%M}",
+                "Arrives": f"{service['arrives']:%a %H:%M}",
+                "Charge": money(service["charge"]),
+            }
+            for service in DELIVERY_SERVICES.values()
+        ],
+        hide_index=True,
+    )
+    st.caption("Each delivery is charged once, however many items it carries.")
 
-    def inbox_label(email_id):
-        email = emails_by_id[email_id]
-        done = "✓ " if email_id in state.decisions else ""
-        return f"{done}{email['sender']} · {email['subject']}"
+with inbox_tab:
+    inbox, work = st.columns([1, 2.4], gap="large")
 
-    email_id = st.radio("Inbox", list(emails_by_id), format_func=inbox_label, label_visibility="collapsed")
+    with inbox:
+        st.markdown("#### Trade desk inbox")
+        emails_by_id = {email["id"]: email for email in EMAILS}
 
-selected = emails_by_id[email_id]
+        def inbox_label(email_id):
+            email = emails_by_id[email_id]
+            done = "✓ " if email_id in state.decisions else ""
+            return f"{done}Email {email_id}: {email['label']}"
 
-with work:
-    with st.container(border=True):
-        st.markdown(f"**{selected['subject']}**")
-        st.caption(f"From {selected['sender']} · received {selected['received']:%a %d %b, %H:%M}")
-        st.write(selected["body"])
+        email_id = st.radio("Inbox", list(emails_by_id), format_func=inbox_label, label_visibility="collapsed")
 
-    run = state.runs.get(email_id)
+    selected = emails_by_id[email_id]
 
-    if run is None:
-        if live and not live_allowed:
-            if state.live_runs_used >= LIVE_RUN_LIMIT:
-                st.info(f"You've used the {LIVE_RUN_LIMIT} live runs for this session. Switch to replay to see recorded runs.")
-            else:
-                st.info("Enter the passcode in the sidebar to run live, or switch to replay.")
-        elif st.button("Plan this order", type="primary"):
-            if live:
-                state.live_runs_used += 1
-                source, note, events_in = "live", "Live run", run_agent(selected)
-            else:
-                recording = load_recording(email_id)
-                if recording is None:
-                    st.error("No recording for this email yet. Switch to live mode, or record one with: python agent.py "
-                             f"{email_id} --save")
-                    st.stop()
-                source = "replay"
-                note = f"Replay of a recorded live run · {recording['model']} · recorded {recording['recorded_at']}"
-                events_in = replay_events(recording)
+    with work:
+        with st.container(border=True):
+            st.markdown(f"**{selected['subject']}**")
+            st.caption(f"From {selected['sender']} · received {selected['received']:%a %d %b, %H:%M}")
+            st.write(selected["body"])
 
-            events = []
-            with st.status("Order Planner is working…", expanded=True) as status:
-                for event in events_in:
-                    render_event(event)
-                    events.append(event)
-                status.update(label="Finished", state="complete", expanded=False)
-            state.runs[email_id] = {"events": events, "source": source, "note": note}
-            st.rerun()
-    else:
-        events = run["events"]
-        final = next((e for e in events if e["type"] == "final"), None)
+        run = state.runs.get(email_id)
 
-        st.caption(run["note"])
-        label = (f"How Order Planner worked it out: {final['steps']} steps, {final['tool_calls']} tool calls"
-                 if final else "What happened")
-        with st.status(label, state="complete" if final else "error", expanded=final is None):
-            for event in events:
-                render_event(event)
+        if run is None:
+            if live and not live_allowed:
+                if state.live_runs_used >= LIVE_RUN_LIMIT:
+                    st.info(f"You've used the {LIVE_RUN_LIMIT} live runs for this session. Switch to replay to see recorded runs.")
+                else:
+                    st.info("Enter the passcode in the sidebar to run live, or switch to replay.")
+            elif st.button("Plan this order", type="primary"):
+                if live:
+                    state.live_runs_used += 1
+                    source, note, events_in = "live", "Live run", run_agent(selected)
+                else:
+                    recording = load_recording(email_id)
+                    if recording is None:
+                        st.error("No recording for this email yet. Switch to live mode, or record one with: python agent.py "
+                                 f"{email_id} --save")
+                        st.stop()
+                    source = "replay"
+                    note = f"Replay of a recorded live run · {recording['model']} · recorded {recording['recorded_at']}"
+                    events_in = replay_events(recording)
 
-        if final:
-            render_answer(email_id, final["answer"])
-        else:
-            st.error("Order Planner didn't finish. Escalate to a colleague.")
-            if load_recording(email_id) and st.button("Show the recorded run instead"):
-                recording = load_recording(email_id)
-                state.runs[email_id] = {"events": recording["events"], "source": "replay",
-                                        "note": f"Replay of a recorded live run · {recording['model']} · recorded {recording['recorded_at']}"}
+                events = []
+                with st.status("Order Planner is working…", expanded=True) as status:
+                    for event in events_in:
+                        render_event(event)
+                        events.append(event)
+                    status.update(label="Finished", state="complete", expanded=False)
+                state.runs[email_id] = {"events": events, "source": source, "note": note}
                 st.rerun()
+        else:
+            events = run["events"]
+            final = next((e for e in events if e["type"] == "final"), None)
 
-        if st.button("Clear and run again", key=f"clear_{email_id}"):
-            del state.runs[email_id]
-            state.decisions.pop(email_id, None)
-            st.rerun()
+            st.caption(run["note"])
+            label = (f"How Order Planner worked it out: {final['steps']} steps, {final['tool_calls']} tool calls"
+                     if final else "What happened")
+            with st.status(label, state="complete" if final else "error", expanded=final is None):
+                for event in events:
+                    render_event(event)
+
+            if final:
+                render_answer(email_id, final["answer"])
+            else:
+                st.error("Order Planner didn't finish. Escalate to a colleague.")
+                if load_recording(email_id) and st.button("Show the recorded run instead"):
+                    recording = load_recording(email_id)
+                    state.runs[email_id] = {"events": recording["events"], "source": "replay",
+                                            "note": f"Replay of a recorded live run · {recording['model']} · recorded {recording['recorded_at']}"}
+                    st.rerun()
+
+            if st.button("Clear and run again", key=f"clear_{email_id}"):
+                del state.runs[email_id]
+                state.decisions.pop(email_id, None)
+                st.rerun()
